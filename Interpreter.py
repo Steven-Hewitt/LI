@@ -102,11 +102,11 @@ def sum(dict, *args):
     string = rest[0]
     #print("arg1, arg2:")
     #print(arg1, arg2)
-    arg1.append(arg2)
+    arg1 = arg1 + arg2
     sum = arg1[0]
     #print("sum, arg1[1:]")
     #print(sum, arg1[1:])
-    for item in arg1[1:][0]:
+    for item in arg1[1:]:
         if sum.get_Type() & NUMBER:
             if item.get_Type() & NUMBER:  sum.set_Value(sum.get_Value() + item.get_Value())
             elif item.get_Type & LIST:    sum = cons(sum,item)
@@ -114,7 +114,45 @@ def sum(dict, *args):
             sum.append(item)
     #print("Returned ",[[sum],string])
     return [[sum],rest]
-functions["+"] = Function("+",sum)
+
+@register("M")
+def product(dict, *args):
+    #print(args)
+    arg1, rest = args[0][0].execute(dict, args[0][1:])
+    #print("rest (arg1):")
+    #print(rest)
+    string = rest[0]
+    if len(arg1) <= 1:
+        (arg2, rest) = string[0].execute(dict, string[1:])
+    #print("rest (arg2):")
+    string = rest[0]
+    arg1 = arg1 + arg2
+    print(arg1)
+    if arg1[0].get_Type() & NUMBER:
+        product = Number(1)
+        for item in arg1:
+            product.set_Value(product.get_Value() * item.get_Value())
+    else: product = [] # TODO cartesian product
+    return [[product], rest]
+
+@register("-")
+def difference(dict, *args):
+    #print(args)
+    arg1, rest = args[0][0].execute(dict, args[0][1:])
+    #print("rest (arg1):")
+    #print(rest)
+    string = rest[0]
+    if len(arg1) <= 1:
+        (arg2, rest) = string[0].execute(dict, string[1:])
+    #print("rest (arg2):")
+    string = rest[0]
+    arg1= arg1 + arg2
+    if arg1[0].get_Type() & NUMBER:
+        diff = arg1[0]
+        for item in arg1[1:]:
+            diff.set_Value(diff.get_Value() - item.get_Value())
+    else: diff = arg1 # TODO cartesian product
+    return [[diff], rest]
 
 '''TODO'''
 def cons(first, next):
@@ -134,11 +172,14 @@ class list:
     empty = 0
     
     def __init__(self, first = None, next = empty):
-        pass
+        self._first = first
+        self._next = next
     def append(self, item):
         pass
     def __str__(self):
-        return str(self._value)
+        return "("+str(self._first) + (")" if next is empty else " " + next._str())
+    def _str(self):
+        return str(self._first) + (")" if next is empty else " " + next._str())
 #        self.first = first
 #        self.next = next
 
@@ -148,23 +189,34 @@ class list:
 
 
 def interpret(program, i):
-    processed = preprocess(program)
-    x = processed[0].execute(functions, processed[1:])
-    for output in x[0]:
+    scope = functions.copy()
+    def Input(*args):
+        return [[i],args[1:]]
+    scope['i'] = Function('i',Input)
+    processed = preprocess(scope,program)
+    x, rest = processed[0].execute(scope, processed[1:])
+    while len(rest[0]) > 0:
+        y, rest = rest[0][0].execute(scope,rest[0][1:])
+        x = x + y
+    for output in x:
         print(output.get_Value())
 
 
-def preprocess(program):
+def preprocess(scope, program):
     processed = []
     for symbol in program:
-        processed.append(functions[symbol])
+        processed.append(scope.get(symbol))
     return processed
     
 def evaluate(i):
     if re.compile(r"[1234567890]+(.[1234567890]+)?").match(i):
-        return Number(i)
+        try:
+            return Number(int(i))
+        except ValueError:
+            return Number(float(i))
+    '''TODO: Check for listiness'''
     return str(i)
 
-print("it compiles!")
+#print("it compiles!")
 while True:
-    interpret(input("Program:"), evaluate(input("input:")))
+    interpret(input("Program:\n"), evaluate(input("input:\n")))
