@@ -1,6 +1,10 @@
 import re
 from numbers import Number as allnumbertypes
 from time import sleep
+import sys
+
+sys.setrecursionlimit(15000)
+
 NUMBER = 1
 FUNCTION = 2
 PAIR = 4
@@ -26,6 +30,9 @@ class Argument:
         return getattr(self._argval,name)
     
     def get_Flags(self): return self._argflags
+    
+    def __str__(self):
+        return str(self._argval)
     
 class Function:
     #onexecute: takes in {dictionary} of scoped Functions, followed by argstring.
@@ -173,10 +180,28 @@ def retrieveParams(minargs, dict, *args, defaultval="i", getuntil=False):
     #print("arg1, arg2:")
     #print(arg1, arg2)
 
+@register(".")
+def duplicate(dict, *args):
+    arg = retrieveParams(1, dict, *args)
+    print(arg)
+    return [[arg[0][0], Argument(arg[0][0],OPTIONAL)]+arg[0][1:],arg[1]]  
+
+
 @register("y",1)    
 def decrement(dict, *args):
     arg = retrieveParams(1, dict, *args)
-    return [[Argument(Number(arg[0][0].get_Value()-1))],arg[1]]    
+    return [[Argument(Number(arg[0][0].get_Value()-1))]+arg[0][1:],arg[1]]  
+  
+@register("Y",1)    
+def increment(dict, *args):
+    arg = retrieveParams(1, dict, *args)
+    return [[Argument(Number(arg[0][0].get_Value()+1))]+arg[0][1:],arg[1]]    
+
+@register("P",1)    
+def printreturn(dict, *args):
+    arg = retrieveParams(1, dict, *args)
+    print(arg[0][0])
+    return [arg[0][:],arg[1]]   
 
 @register("?",3)
 def ifelse(dict, *args):
@@ -262,7 +287,6 @@ def sum(dict, *args):
     arg1, rest = retrieveParams(2, dict, *args)
     sum = arg1[0]
     #print("sum, arg1[1:]")
-    #print(sum, arg1[1:])
     if sum.get_Type() & NUMBER:
         if arg1[1].get_Type() & NUMBER:  sum.set_Value(sum.get_Value() + arg1[1].get_Value())
         elif arg1[1].get_Type & LIST:    sum = cons(sum,arg1[1])
@@ -318,8 +342,31 @@ def difference(dict, *args):
     
     return [[diff]+arg1[last_used:],rest]
 
+@register("^", 2)
+def exponent(dict, *args):
+    
+    arg1, rest = retrieveParams(2, dict, *args)
+    expon = arg1[0]
+    #print("sum, arg1[1:]")
+    #print(sum, arg1[1:])
+    if expon.get_Type() & NUMBER: expon.set_Value(expon.get_Value() ** arg1[1].get_Value())
+    elif expon.get_Type() & LIST: pass
+        #for arg in arg1[1]:
+            
+    last_used = len(arg1)
+    for index, item in enumerate(arg1[2:]):
+        if item.get_Flags() & OPTIONAL: 
+            last_used = index + 2
+            break
+        if expon.get_Type() & NUMBER: expon.set_Value(expon.get_Value() ** item.get_Value())
+        elif expon.get_Type() & LIST: pass
+    
+    return [[expon]+arg1[last_used:],rest]
+
+
+
 @register("/", 2)
-def difference(dict, *args):
+def divide(dict, *args):
     arg1, rest = retrieveParams(2, dict, *args)
     div = arg1[0]
     #print("sum, arg1[1:]")
@@ -340,7 +387,7 @@ def difference(dict, *args):
 
 '''TODO'''
 @register("c")
-def difference(dict, *args):
+def construct(dict, *args):
     pass
 
 def interpret(program, i):
@@ -386,4 +433,6 @@ def evaluate(i):
 
 #print("it compiles!")
 while True:
+    #try: 
     run()
+    #except: pass
