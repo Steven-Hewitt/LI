@@ -3,7 +3,7 @@ from numbers import Number as allnumbertypes
 from time import sleep
 import sys
 
-sys.setrecursionlimit(15000)
+sys.setrecursionlimit(150)
 
 NUMBER = 1
 FUNCTION = 2
@@ -14,6 +14,8 @@ REQUIRED = 1
 OPTIONAL = 2
 
 functions = {}
+
+verbose = False
 
 def register(name, arity = 0):
     def register_function(function):
@@ -34,6 +36,9 @@ class Argument:
     def __str__(self):
         return str(self._argval)
     
+    def __repr__(self):
+        return repr(self._argval)
+    
 class Function:
     #onexecute: takes in {dictionary} of scoped Functions, followed by argstring.
     #Returns an array of return values, followed by the remainder of the argstring.
@@ -49,7 +54,7 @@ class Function:
         if isinstance(self._arity, allnumbertypes):
             arity = self._arity
             numargs = 0
-            #print(argstring)
+            #print("Argstring:",argstring)
             while numargs < self._arity and len(argstring) > 0:
                 arg1, rest = argstring[0].coalesce_arity(dict, argstring[1:], *args)
                 #print(self._name, self._arity, numargs, arg1, rest)
@@ -64,13 +69,14 @@ class Function:
                 numargs = numargs + 1
             #sleep(10)
             return [arity, argstring]
-        print("arityisnotnumber")
+        print("arity is not a number")
     def get_Name(self):
         return self._name
     
     def get_Type(self):
         return FUNCTION
-  
+    def __repr__(self):
+        return "F:"+self._name
 class Number:
     def __init__(self, value):
         self._value = value
@@ -87,7 +93,8 @@ class Number:
         return NUMBER
     def __str__(self):
         return str(self._value)
-
+    def __repr__(self):
+        return "(Number:"+str(self._value)+")"
 class Boolean:
     def __init__(self, value):
         self._value = value
@@ -169,13 +176,14 @@ def retrieveParams(minargs, dict, *args, defaultval="i", getuntil=False):
     rest = args
     string = rest[0]
     while len(arg) < minargs and len(string) > 0:
-        #print(rest)
+        if verbose: print("grabbing argument from", rest)
         
         arg1, rest = string[0].execute(dict, string[1:], *args[1:])
         string = rest[0]
         arg = arg + arg1
     while len(arg) < minargs:
         arg = arg + dict.get(defaultval).execute(dict)[0]
+    if verbose: print("grabbed arguments", arg, "from", args)
     return [arg,rest]
     #print("arg1, arg2:")
     #print(arg1, arg2)
@@ -183,7 +191,7 @@ def retrieveParams(minargs, dict, *args, defaultval="i", getuntil=False):
 @register(".")
 def duplicate(dict, *args):
     arg = retrieveParams(1, dict, *args)
-    print(arg)
+    #print(arg)
     return [[arg[0][0], Argument(arg[0][0],OPTIONAL)]+arg[0][1:],arg[1]]  
 
 
@@ -208,21 +216,22 @@ def ifelse(dict, *args):
     arg1, rest = retrieveParams(1, dict, *args)
     
     if truthy(arg1[0]):
-        #print("truthy", arg1[0])
+        if verbose: print("truthy", arg1[0])
         if len(arg1)>1:  return ([arg1[1]]+arg1[3:], rest) 
         else:
             #print("rest", rest)
             arg, rest = retrieveParams(1,dict, *rest)
             #print("rest after retrieve", rest)
             return (arg, (rest[0][0] if len(rest[0])>0 else dict.get("i")).coalesce_arity(dict, rest[0][1:], *rest[1:])[1:])
+    if verbose: print("falsy", arg1[0])
     if len(arg1) > 2: return (arg1[2:], rest) 
     else:
         
         #print("functions",[y.get_Name() for y in rest[0]])
         #print("rest of rest", rest[1:])
-        past = rest[0][0].coalesce_arity(dict, rest[0], *rest[1:])[1]
+        past = rest[0][0].coalesce_arity(dict, rest[0][1:], *rest[1:])[1]
         #print("coalesced_arity", past)
-        x = retrieveParams(1,dict,past[1:])
+        x = retrieveParams(1,dict,past)
         #print([y.get_Value() for y in x[0]],x)
         return x
 
@@ -390,17 +399,28 @@ def divide(dict, *args):
 def construct(dict, *args):
     pass
 
-def interpret(program, i):
+def interpret(program, i, cache):
     scope = functions.copy()
     def Input(*args):
         return [[i],args[1:]]
     def Recurse(dict, *args):
-        arg = retrieveParams(1, dict, *args)
-        return [interpret(program, arg[0][0]),arg[1]]
+        arg, rest = retrieveParams(1, dict, *args)
+        if verbose: print("dict=",dict)
+        #print("cache=",cache)
+        if verbose: print("Recursing:", arg[0], "with current i = ", scope.get("i").execute()[0])
+        if not arg[0] in cache:
+            cache[arg[0]] = interpret(program, arg[0], cache)
+        if verbose: print("returned",cache.get(arg[0]),"for input",arg)
+        if verbose: print("i = ", scope.get("i").execute()[0])
+        return [cache.get(arg[0])+arg[1:],rest]
     scope['i'] = Function('i',Input, 0)
     scope['R'] = Function('R',Recurse,1)
     processed = preprocess(scope,program)
+    
+    if verbose: print("XXXX",processed[0],":",processed[1:]);
+    
     x, rest = processed[0].execute(scope, processed[1:])
+
     #print(x, rest)
     while len(rest[0]) > 0:
         y, rest = rest[0][0].execute(scope,rest[0][1:], *rest[1:])
@@ -409,7 +429,7 @@ def interpret(program, i):
 
 def run():
     program, i = (input("Program:\n"), evaluate(input("input:\n")))
-    x = interpret(program, i)
+    x = interpret(program, i, {})
     for output in x:
         print(output.get_Value())
 
@@ -435,4 +455,4 @@ def evaluate(i):
 while True:
     #try: 
     run()
-    #except: pass
+    #except: pass 
