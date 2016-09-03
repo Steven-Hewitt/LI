@@ -452,7 +452,8 @@ def evaluate(i):
     return str(i)
 
 #print("it compiles!")
-while True:
-    #try: 
-    run()
-    #except: pass 
+if __name__ == "__main__":
+    while True:
+        #try: 
+        run()
+        #except: pass 
