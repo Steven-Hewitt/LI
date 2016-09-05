@@ -205,6 +205,11 @@ def increment(dict, *args):
     arg = retrieveParams(1, dict, *args)
     return [[Argument(Number(arg[0][0].get_Value()+1))]+arg[0][1:],arg[1]]    
 
+@register("h",1)    
+def halve(dict, *args):
+    arg = retrieveParams(1, dict, *args)
+    return [[Argument(Number(arg[0][0].get_Value()/2))]+arg[0][1:],arg[1]]  
+    
 @register("P",1)    
 def printreturn(dict, *args):
     arg = retrieveParams(1, dict, *args)
